@@ -1,0 +1,12 @@
+# Ignore everything in the example project from the *image build context*.
+# The container uses a bind mount at runtime; we don't need project files in context.
+
+# VCS / IDE
+.git/
+.gitignore
+.idea/
+*.iml
+
+# OS cruft
+.DS_Store
+Thumbs.db
