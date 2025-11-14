@@ -136,6 +136,19 @@ COPY --chown=android:android ./project/build.gradle* ./project/settings.gradle* 
 COPY --chown=android:android ./project/gradle /workspace/gradle/
 COPY --chown=android:android ./project/gradlew* /workspace/
 
+# Copy module build files (needed for Gradle 9+ project structure validation)
+RUN --mount=type=bind,source=./project,target=/tmp/project \
+    echo "==> Copying module build files..." && \
+    find /tmp/project -maxdepth 2 -type f \( -name "build.gradle.kts" -o -name "build.gradle" \) | while read file; do \
+        module_dir=$(dirname "$file" | sed "s|/tmp/project/||"); \
+        if [ "$module_dir" != "." ] && [ "$module_dir" != "build-logic" ] && [ "$module_dir" != "buildSrc" ]; then \
+            echo "  Copying build file for: $module_dir"; \
+            mkdir -p "/workspace/$module_dir" && \
+            cp "$file" "/workspace/$module_dir/" || true; \
+        fi; \
+    done && \
+    echo "==> Module build files copied"
+
 # Conditionally copy build-logic if it exists
 RUN --mount=type=bind,source=./project,target=/tmp/project \
     if [ -d /tmp/project/build-logic ]; then \
@@ -144,6 +157,16 @@ RUN --mount=type=bind,source=./project,target=/tmp/project \
         cp -r /tmp/project/build-logic/. /workspace/build-logic/; \
     else \
         echo "==> No build-logic directory, skipping"; \
+    fi
+
+# Conditionally copy buildSrc if it exists
+RUN --mount=type=bind,source=./project,target=/tmp/project \
+    if [ -d /tmp/project/buildSrc ]; then \
+        echo "==> Copying buildSrc directory" && \
+        mkdir -p /workspace/buildSrc && \
+        cp -r /tmp/project/buildSrc/. /workspace/buildSrc/; \
+    else \
+        echo "==> No buildSrc directory, skipping"; \
     fi
 
 # Check if gradlew exists, generate if needed, then download dependencies
