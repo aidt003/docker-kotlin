@@ -149,6 +149,17 @@ RUN --mount=type=bind,source=./project,target=/tmp/project \
     done && \
     echo "==> Module build files copied"
 
+# Copy AndroidManifest.xml files (needed for Gradle 9+ package name resolution)
+RUN --mount=type=bind,source=./project,target=/tmp/project \
+    echo "==> Copying AndroidManifest.xml files..." && \
+    find /tmp/project -type f -name "AndroidManifest.xml" | while read manifest; do \
+        manifest_dir=$(dirname "$manifest" | sed "s|/tmp/project/||"); \
+        echo "  Copying manifest for: $manifest_dir"; \
+        mkdir -p "/workspace/$manifest_dir" && \
+        cp "$manifest" "/workspace/$manifest_dir/" || true; \
+    done && \
+    echo "==> AndroidManifest.xml files copied"
+
 # Conditionally copy build-logic if it exists
 RUN --mount=type=bind,source=./project,target=/tmp/project \
     if [ -d /tmp/project/build-logic ]; then \
