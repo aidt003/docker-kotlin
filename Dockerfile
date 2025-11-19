@@ -200,37 +200,6 @@ COPY --chown=android:android ./project /workspace/
 # Fix permissions (gradlew was overwritten)
 RUN if [ -f gradlew ]; then chmod +x gradlew; fi
 
-# === Copy tests before building, so Gradle knows about them ===
-COPY --chown=android:android ./tests /workspace/tests/
-
-# Recursively copy tests to match project structure
-RUN echo "==> Copying tests into modules..." && \
-    if [ -d /workspace/tests ]; then \
-        cd /workspace/tests && \
-        find . -type d -name "src" | while read src_dir; do \
-            # Get module path (remove ./src from end)
-            module_path=$(dirname "$src_dir" | sed 's|^\./||'); \
-            echo "  Processing tests for: $module_path"; \
-            \
-            # Copy unit tests if they exist
-            if [ -d "$src_dir/test" ]; then \
-                target_dir="/workspace/$module_path/src/test"; \
-                mkdir -p "$target_dir" && \
-                cp -R "$src_dir/test/"* "$target_dir/" 2>/dev/null || true; \
-                echo "    ✓ Copied unit tests"; \
-            fi; \
-            \
-            # Copy instrumented tests if they exist
-            if [ -d "$src_dir/androidTest" ]; then \
-                target_dir="/workspace/$module_path/src/androidTest"; \
-                mkdir -p "$target_dir" && \
-                cp -R "$src_dir/androidTest/"* "$target_dir/" 2>/dev/null || true; \
-                echo "    ✓ Copied instrumented tests"; \
-            fi; \
-        done; \
-    fi && \
-    echo "==> ✅ All tests copied"
-
 # ===== 🚨 CUSTOMIZE FOR YOUR PROJECT 🚨 =====
 # If your project has product flavors, set FLAVOR (e.g., Demo, Prod)
 # If no flavors, leave empty
