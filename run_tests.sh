@@ -134,7 +134,9 @@ else
                             sed "s/.*launchable-activity: name='\([^']*\)'.*/\1/" | head -1)
         
         if [ -n "$APP_PACKAGE" ] && [ -n "$LAUNCHER_ACTIVITY" ]; then
-            echo "  adb shell am start -n $APP_PACKAGE/$LAUNCHER_ACTIVITY"
+            APP_COMPONENT="$APP_PACKAGE/$LAUNCHER_ACTIVITY"
+            printf -v Q_APP_COMPONENT '%q' "$APP_COMPONENT"
+            echo "  adb shell am start -n $Q_APP_COMPONENT"
         else
             echo "  ⚠️  Could not extract launch info"
         fi
@@ -158,11 +160,15 @@ else
                     sed 's/.*Raw: "\([^"]*\)".*/\1/')
         
         if [ -n "$TEST_PACKAGE" ] && [ -n "$TEST_RUNNER" ]; then
-            echo "  adb shell am instrument -w $TEST_PACKAGE/$TEST_RUNNER"
+            TEST_COMPONENT="$TEST_PACKAGE/$TEST_RUNNER"
+            printf -v Q_TEST_COMPONENT '%q' "$TEST_COMPONENT"
+            echo "  adb shell am instrument -w $Q_TEST_COMPONENT"
         else
             echo "  ⚠️  Could not extract test runner info"
             echo "  Test package: ${TEST_PACKAGE:-unknown}"
-            echo "  Try: adb shell am instrument -w ${TEST_PACKAGE:-PACKAGE}.test/androidx.test.runner.AndroidJUnitRunner"
+            FALLBACK_COMPONENT="${TEST_PACKAGE:-PACKAGE}.test/androidx.test.runner.AndroidJUnitRunner"
+            printf -v Q_FALLBACK_COMPONENT '%q' "$FALLBACK_COMPONENT"
+            echo "  Try: adb shell am instrument -w $Q_FALLBACK_COMPONENT"
         fi
         echo ""
     fi
@@ -175,18 +181,26 @@ if [ -n "$DEBUG_APK" ] && [ -n "$TEST_APK" ]; then
     DEBUG_BASENAME=$(basename "$DEBUG_APK")
     TEST_BASENAME=$(basename "$TEST_APK")
     
+    # Pre-escape paths and names for safe shell copy/paste
+    printf -v Q_DEBUG_APK '%q' "$DEBUG_APK"
+    printf -v Q_TEST_APK '%q' "$TEST_APK"
+    printf -v Q_DEBUG_BASENAME '%q' "$DEBUG_BASENAME"
+    printf -v Q_TEST_BASENAME '%q' "$TEST_BASENAME"
+    
     echo "1. Extract APKs from Docker:"
     echo "  (Replace IMAGE_NAME with the name of your Docker image)"
     echo "    mkdir -p apks"
     echo "    docker run --rm --platform linux/amd64 -v \"\$(pwd)/apks:/apks\" IMAGE_NAME bash -c \\"
-    echo "      \"cp $DEBUG_APK /apks/ && cp $TEST_APK /apks/\""
+    echo "      \"cp $Q_DEBUG_APK /apks/ && cp $Q_TEST_APK /apks/\""
     echo ""
     
     echo "2. Uninstall existing APK versions (if present):"
     if [ -n "$APP_PACKAGE" ]; then
-        echo "    adb uninstall $APP_PACKAGE || true"
+        printf -v Q_APP_PACKAGE '%q' "$APP_PACKAGE"
+        echo "    adb uninstall $Q_APP_PACKAGE || true"
         if [ -n "$TEST_PACKAGE" ]; then
-            echo "    adb uninstall $TEST_PACKAGE || true"
+            printf -v Q_TEST_PACKAGE '%q' "$TEST_PACKAGE"
+            echo "    adb uninstall $Q_TEST_PACKAGE || true"
         fi
     else
         echo "    adb uninstall YOUR_PACKAGE || true"
@@ -196,13 +210,15 @@ if [ -n "$DEBUG_APK" ] && [ -n "$TEST_APK" ]; then
     
     echo "3. Install APKs:"
     echo "    cd apks"
-    echo "    adb install $DEBUG_BASENAME"
-    echo "    adb install $TEST_BASENAME"
+    echo "    adb install $Q_DEBUG_BASENAME"
+    echo "    adb install $Q_TEST_BASENAME"
     echo ""
     
     echo "4. Run instrumented tests:"
     if [ -n "$TEST_PACKAGE" ] && [ -n "$TEST_RUNNER" ]; then
-        echo "    adb shell am instrument -w $TEST_PACKAGE/$TEST_RUNNER"
+        TEST_COMPONENT="$TEST_PACKAGE/$TEST_RUNNER"
+        printf -v Q_TEST_COMPONENT2 '%q' "$TEST_COMPONENT"
+        echo "    adb shell am instrument -w $Q_TEST_COMPONENT2"
     else
         echo "    adb shell am instrument -w TEST_PACKAGE/TEST_RUNNER"
     fi
@@ -210,7 +226,9 @@ if [ -n "$DEBUG_APK" ] && [ -n "$TEST_APK" ]; then
     
     echo "5. (Optional) Launch app:"
     if [ -n "$APP_PACKAGE" ] && [ -n "$LAUNCHER_ACTIVITY" ]; then
-        echo "    adb shell am start -n $APP_PACKAGE/$LAUNCHER_ACTIVITY"
+        APP_COMPONENT2="$APP_PACKAGE/$LAUNCHER_ACTIVITY"
+        printf -v Q_APP_COMPONENT2 '%q' "$APP_COMPONENT2"
+        echo "    adb shell am start -n $Q_APP_COMPONENT2"
     else
         echo "    adb shell am start -n PACKAGE/.MainActivity"
     fi
